@@ -44,7 +44,7 @@ function App() {
       });
 
       const { filename } = response.data;
-      setVideoUrl(`http://localhost:8000/stream/${filename}`);
+      setVideoUrl(`http://localhost:8000/videos/${filename}`); // Updated URL
     } catch (error) {
       console.error("Error uploading video:", error);
     }
@@ -52,7 +52,7 @@ function App() {
 
   const handleVideoSelect = (e) => {
     setSelectedVideo(e.target.value);
-    setVideoUrl(`http://localhost:8000/stream/${e.target.value}`);
+    setVideoUrl(`http://localhost:8000/videos/${e.target.value}`); // Updated URL
   };
 
   return (

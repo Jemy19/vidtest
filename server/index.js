@@ -8,16 +8,6 @@ const app = express();
 
 const mongoURI = 'mongodb+srv://jeremy19:qweasdzxc123@cluster0.ycodben.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
-// Middleware
-app.use(cors(
-    {
-        credentials: true,
-        origin: 'http://localhost:3000'
-    }
-));
-app.use(express.json());
-
-// Create mongo connection
 mongoose.connect(mongoURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -25,33 +15,29 @@ mongoose.connect(mongoURI, {
 .then(() => {
   console.log('Database Connected');
   const conn = mongoose.connection;
-  let gfs;
-
-  conn.once("open", () => {
-    gfs = new mongoose.mongo.GridFSBucket(conn.db, {
-      bucketName: "uploads"
-    });
-    console.log('gfs initialized:', gfs); // Log to verify initialization
+  const gfs = new mongoose.mongo.GridFSBucket(conn.db, {
+    bucketName: "uploads"
   });
 
-  // Create storage engine
+  // Define routes
+  app.use(cors({
+    credentials: true,
+    origin: 'http://localhost:3000'
+  }));
+  app.use(express.json());
+
   const storage = new GridFsStorage({
     url: mongoURI,
     file: (req, file) => {
-      const fileInfo = {
+      return {
         filename: file.originalname,
         bucketName: 'uploads'
       };
-      if (file.id) {
-        fileInfo._id = file.id;
-      }
-      return fileInfo;
     }
   });
 
   const upload = multer({ storage });
 
-  // Route for uploading videos
   app.post("/upload", upload.single("file"), async (req, res) => {
     try {
       const { filename } = req.file;
@@ -62,14 +48,8 @@ mongoose.connect(mongoURI, {
     }
   });
 
-  // Route for fetching a list of videos
   app.get("/videos", async (req, res) => {
     try {
-      const gfs = await conn.db.collection('uploads.files'); // Await gfs initialization
-      console.log(gfs); // Log to check gfs value
-      if (!gfs) {
-        return res.status(500).send("GridFS not initialized");
-      }
       const files = await gfs.find().toArray();
       const filenames = files.map(file => file.filename);
       res.status(200).send(filenames);
@@ -79,15 +59,10 @@ mongoose.connect(mongoURI, {
     }
   });
 
-  // Route for streaming videos
   app.get("/videos/:filename", async (req, res) => {
     try {
-      console.log(gfs); // Log to check gfs value
-      if (!gfs) {
-        return res.status(500).send("GridFS not initialized");
-      }
       const filename = req.params.filename;
-      const videoStream = await gfs.openDownloadStream(filename);
+      const videoStream = gfs.openDownloadStreamByName(filename);
 
       // Set appropriate headers for video streaming
       res.setHeader("Content-Type", "video/mp4"); // Adjust content type based on video format
@@ -106,3 +81,4 @@ mongoose.connect(mongoURI, {
   });
 })
 .catch((err) => console.log('Database not Connected', err));
+
